@@ -1,0 +1,7 @@
+{
+  "name": "RetroPlay 64 & PSX",
+  "description": "Emulador de PS1 e Nintendo 64 com suporte a controles Bluetooth, mapeamento e biblioteca de jogos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
