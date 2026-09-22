@@ -5,8 +5,13 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.audio.RetroAudioSynthesizer
+import com.example.controller.BluetoothGamepadDevice
+import com.example.controller.BluetoothGamepadService
+import com.example.controller.EmulatorButton
+import com.example.controller.EmulatorCommand
 import com.example.controller.GamepadManager
 import com.example.controller.GamepadState
+import com.example.controller.InputSource
 import com.example.data.db.AppDatabase
 import com.example.data.model.AspectRatioMode
 import com.example.data.model.ConsoleType
@@ -41,7 +46,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val audioSynthesizer = RetroAudioSynthesizer(application)
     val gamepadManager = GamepadManager(application)
+    val bluetoothGamepadService = BluetoothGamepadService(application)
     val emulatorSession = EmulatorSession(audioSynthesizer)
+
+    val bluetoothDevices: StateFlow<List<BluetoothGamepadDevice>> = bluetoothGamepadService.connectedDevices
 
     private val db = AppDatabase.getDatabase(application, viewModelScope)
     val repository = GameRepository(db.gameDao(), db.saveStateDao())
@@ -100,11 +108,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.ensureInitialGames()
         }
+        viewModelScope.launch {
+            bluetoothGamepadService.commandFlow.collect { command ->
+                handleEmulatorCommand(command)
+            }
+        }
+    }
+
+    private fun handleEmulatorCommand(command: EmulatorCommand) {
+        when (command) {
+            is EmulatorCommand.TogglePause -> emulatorSession.togglePause()
+            is EmulatorCommand.FastForward -> emulatorSession.cycleSpeed()
+            is EmulatorCommand.ResetSession -> emulatorSession.restartGame(emulatorSettings.value)
+            is EmulatorCommand.QuickSave -> saveState(slot = 1)
+            is EmulatorCommand.QuickLoad -> loadState(slot = 1)
+            else -> {
+                // Directional and button actions are continuously routed via GamepadState
+            }
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
         gamepadManager.release()
+        bluetoothGamepadService.release()
         stopGameLoop()
     }
 

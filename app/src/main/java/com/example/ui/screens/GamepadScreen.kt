@@ -70,6 +70,7 @@ fun GamepadScreen(
     modifier: Modifier = Modifier
 ) {
     val gamepadState by viewModel.gamepadState.collectAsStateWithLifecycle()
+    val bluetoothDevices by viewModel.bluetoothDevices.collectAsStateWithLifecycle()
     val settings by viewModel.emulatorSettings.collectAsStateWithLifecycle()
 
     LazyColumn(
@@ -97,8 +98,75 @@ fun GamepadScreen(
         item {
             ControllerStatusCard(
                 gamepadState = gamepadState,
-                onRefresh = { viewModel.gamepadManager.refreshConnectedControllers() }
+                onRefresh = {
+                    viewModel.gamepadManager.refreshConnectedControllers()
+                    viewModel.bluetoothGamepadService.refreshConnectedDevices()
+                }
             )
+        }
+
+        // Bluetooth Devices List & Detection Status
+        if (bluetoothDevices.isNotEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Bluetooth, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(20.dp))
+                            Text(
+                                "Dispositivos Bluetooth Detectados",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+
+                        bluetoothDevices.forEach { device ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(SurfaceElevated)
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(device.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(
+                                        "${device.deviceCategory} • ${device.address}",
+                                        color = TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (device.isConnected) Color(0xFF1B5E20) else SurfaceDark)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = if (device.isConnected) "ATIVO" else "PAREADO",
+                                        color = if (device.isConnected) Color(0xFF81C784) else TextMuted,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Live Calibration & Diagnostic Visualizer Bench

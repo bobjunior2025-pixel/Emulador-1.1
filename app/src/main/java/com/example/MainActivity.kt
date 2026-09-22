@@ -74,6 +74,8 @@ class MainActivity : ComponentActivity() {
      * Intercept physical hardware buttons from Bluetooth / USB gamepads
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Forward to Bluetooth service for high-level command mapping
+        viewModel.bluetoothGamepadService.processKeyEvent(event)
         if (viewModel.gamepadManager.handleKeyEvent(event)) {
             return true
         }
@@ -84,6 +86,8 @@ class MainActivity : ComponentActivity() {
      * Intercept analog thumbsticks and analog triggers (L2/R2) from Bluetooth gamepads
      */
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        // Forward to Bluetooth service for directional commands
+        viewModel.bluetoothGamepadService.processMotionEvent(event)
         if (viewModel.gamepadManager.handleMotionEvent(event)) {
             return true
         }
