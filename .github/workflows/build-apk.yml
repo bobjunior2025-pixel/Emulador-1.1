@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Criar APK (Android)
 
 on:
   push:
@@ -26,28 +26,30 @@ concurrency:
 
 jobs:
   build:
-    name: Build APK (${{ github.event.inputs.build_type || 'debug' }})
+    name: Compilar APK (${{ github.event.inputs.build_type || 'debug' }})
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repositório
+      - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Configurar JDK 17
+      - name: Configurar Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.13'
+      - name: Preparar ambiente e variáveis (.env)
+        run: |
+          if [ ! -f .env ]; then
+            echo "Criando arquivo .env a partir de .env.example..."
+            cp .env.example .env || touch .env
+          fi
 
-      - name: Restaurar Chave de Assinatura de Depuração (Debug Keystore)
+      - name: Restaurar Chave de Assinatura de Depuração (debug.keystore)
         run: |
           if [ -f debug.keystore.base64 ]; then
             echo "Decodificando debug.keystore.base64..."
@@ -58,40 +60,48 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Compilar APK de Depuração (assembleDebug)
-        if: "${{ github.event.inputs.build_type != 'release' }}"
-        run: |
-          gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Dar permissão de execução ao Gradle Wrapper
+        run: chmod +x gradlew
 
-      - name: Compilar APK de Produção (assembleRelease)
-        if: "${{ github.event.inputs.build_type == 'release' }}"
+      - name: Compilar APK (${{ github.event.inputs.build_type || 'debug' }})
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/debug.keystore
           STORE_PASSWORD: android
           KEY_PASSWORD: android
         run: |
-          gradle :app:assembleRelease --stacktrace --no-daemon
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            ./gradlew :app:assembleRelease --stacktrace --no-configuration-cache
+          else
+            ./gradlew :app:assembleDebug --stacktrace --no-configuration-cache
+          fi
 
       - name: Localizar APK gerado
         id: find_apk
         run: |
           APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
-          echo "APK encontrado em: $APK_PATH"
+          if [ -z "$APK_PATH" ]; then
+            echo "Erro: Nenhum APK encontrado!"
+            exit 1
+          fi
+          echo "APK gerado em: $APK_PATH"
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
 
-      - name: Fazer Upload do APK como Artefato do GitHub Actions
+      - name: Fazer Upload do APK para Download
         uses: actions/upload-artifact@v4
         with:
           name: RetroPlay-APK-${{ github.event.inputs.build_type || 'debug' }}
           path: app/build/outputs/apk/**/*.apk
           retention-days: 14
 
-      - name: Resumo do Build
+      - name: Publicar Resumo do Build
+        if: always()
         run: |
-          echo "### 🎮 Build do APK Concluído com Sucesso!" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎮 Build do APK Concluído!" >> $GITHUB_STEP_SUMMARY
           echo "- **App**: RetroPlay 64 & PSX" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Ref**: \`${{ github.ref }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Arquivo gerado**: \`${{ steps.find_apk.outputs.apk_path }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Para baixar o APK, acesse a aba **Actions** neste repositório e baixe o artefato gerado na seção **Artifacts**." >> $GITHUB_STEP_SUMMARY
+          echo "- **Tipo**: \`${{ github.event.inputs.build_type || 'debug' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status == 'success' && '✅ Sucesso' || '❌ Falhou' }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "- **Arquivo APK**: \`${{ steps.find_apk.outputs.apk_path }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📥 Baixe o APK na seção **Artifacts** no final desta página da execução do GitHub Actions." >> $GITHUB_STEP_SUMMARY
+          fi
