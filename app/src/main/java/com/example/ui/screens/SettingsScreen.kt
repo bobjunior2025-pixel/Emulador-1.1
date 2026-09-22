@@ -32,11 +32,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.AspectRatioMode
 import com.example.data.model.ResolutionScale
+import com.example.emulator.libretro.LibretroCoreManager
 import com.example.ui.MainViewModel
 import com.example.ui.theme.BackgroundDark
 import com.example.ui.theme.NeonCyan
@@ -275,6 +278,67 @@ fun SettingsScreen(
                                 uncheckedTrackColor = SurfaceElevated
                             )
                         )
+                    }
+                }
+            }
+        }
+
+        // Libretro Cores Management Section
+        item {
+            SectionHeader(icon = Icons.Default.Memory, title = "Núcleos Libretro (Emulação Real)")
+        }
+
+        item {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                border = androidx.compose.foundation.BorderStroke(1.dp, SurfaceBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        "Integração Libretro (Mupen64Plus-Next & PCSX ReARMed)",
+                        color = TextPrimary,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "Permite acionar os núcleos Libretro instalados no Android para executar as instruções MIPS reais das ROMs comerciais importadas.",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+
+                    LibretroCoreManager.AVAILABLE_CORES.forEach { core ->
+                        val isInstalled = LibretroCoreManager.findInstalledPackage(context, core) != null
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(SurfaceElevated)
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(core.name, color = TextPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 13.sp)
+                                Text(
+                                    if (isInstalled) "Instalado e Pronto" else "Toque para instalar o núcleo",
+                                    color = if (isInstalled) Color(0xFF81C784) else NeonCyan,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            if (!isInstalled) {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { LibretroCoreManager.openStoreForCore(context, core) }
+                                ) {
+                                    Text("Instalar", color = NeonCyan, fontSize = 12.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                }
+                            }
+                        }
                     }
                 }
             }

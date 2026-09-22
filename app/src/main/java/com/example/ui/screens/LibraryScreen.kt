@@ -72,6 +72,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.ConsoleType
 import com.example.data.model.GameEntity
+import com.example.emulator.libretro.LibretroCoreManager
+import com.example.ui.components.LibretroCoreBottomSheet
 import com.example.ui.MainViewModel
 import com.example.ui.theme.BackgroundDark
 import com.example.ui.theme.N64Gold
@@ -100,6 +102,7 @@ fun LibraryScreen(
     val gamepadState by viewModel.gamepadState.collectAsStateWithLifecycle()
 
     var showSearchBar by remember { mutableStateOf(false) }
+    var selectedGameForCore by remember { mutableStateOf<GameEntity?>(null) }
 
     // SAF Document Picker for ROM import (.iso, .bin, .cue, .pbp, .z64, .n64, etc.)
     val romPickerLauncher = rememberLauncherForActivityResult(
@@ -219,12 +222,53 @@ fun LibraryScreen(
                 items(games, key = { it.id }) { game ->
                     GameCard(
                         game = game,
-                        onPlay = { viewModel.playGame(game) },
+                        onPlay = {
+                            if (!game.isBuiltInDemo && game.filePath.isNotBlank()) {
+                                selectedGameForCore = game
+                            } else {
+                                viewModel.playGame(game)
+                            }
+                        },
                         onToggleFavorite = { viewModel.toggleFavorite(game) },
                         onDelete = { viewModel.deleteGame(game) }
                     )
                 }
             }
+        }
+
+        // Libretro Core Selector Bottom Sheet for Real Emulation
+        selectedGameForCore?.let { gameToLaunch ->
+            val coreInfo = LibretroCoreManager.getCoreForGame(gameToLaunch)
+            val installedPkg = LibretroCoreManager.findInstalledPackage(context, coreInfo)
+            LibretroCoreBottomSheet(
+                game = gameToLaunch,
+                installedPackage = installedPkg,
+                onLaunchRealCore = {
+                    val realIntent = LibretroCoreManager.createRealLaunchIntent(context, gameToLaunch)
+                    if (realIntent != null) {
+                        try {
+                            context.startActivity(realIntent)
+                            selectedGameForCore = null
+                        } catch (_: Exception) {
+                            viewModel.playGame(gameToLaunch)
+                            selectedGameForCore = null
+                        }
+                    } else {
+                        viewModel.playGame(gameToLaunch)
+                        selectedGameForCore = null
+                    }
+                },
+                onLaunchBuiltInSimulator = {
+                    viewModel.playGame(gameToLaunch)
+                    selectedGameForCore = null
+                },
+                onInstallCoreApp = { core ->
+                    LibretroCoreManager.openStoreForCore(context, core)
+                },
+                onDismiss = {
+                    selectedGameForCore = null
+                }
+            )
         }
 
         // Floating Action Button to Import ROM

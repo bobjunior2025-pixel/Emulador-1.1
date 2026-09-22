@@ -30,6 +30,29 @@
                 <category android:name="android.intent.category.GAME" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
+
+    <queries>
+        <package android:name="com.retroarch.aarch64" />
+        <package android:name="com.retroarch" />
+        <package android:name="org.mupen64plusae.v3.fzurita" />
+        <package android:name="org.mupen64plusae.v3.fzurita.pro" />
+        <package android:name="com.github.stenzek.duckstation" />
+        <package android:name="com.epsxe.ePSXe" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
 
 </manifest>
